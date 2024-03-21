@@ -135,3 +135,4 @@
 /home/gdmeira/Documents/Stone/Consumer/bin/Debug/net8.0/Newtonsoft.Json.dll
 /home/gdmeira/Documents/Stone/Consumer/bin/Debug/net8.0/Pipelines.Sockets.Unofficial.dll
 /home/gdmeira/Documents/Stone/Consumer/bin/Debug/net8.0/StackExchange.Redis.dll
+/home/gdmeira/Documents/Stone/Consumer/obj/Debug/net8.0/Consumer.sourcelink.json

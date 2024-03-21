@@ -13,7 +13,8 @@ using RabbitMQ.Client.Events;
 using StackExchange.Redis;
 
 var dbOptions = new DbContextOptionsBuilder<ApixDbContext>()
-    .UseNpgsql("Host=localhost;Port=5433;Database=APIx_DB;UserName=postgres;Password=postgres;") //TODO: mudar para endereço do container
+    .UseNpgsql(@"Host=localhost;Port=5433;Database=APIx_DB;UserName=postgres;Password=postgres;
+        Enlist=False;No Reset On Close=True;") //TODO: mudar para endereço do container
     .Options;
 
 var cacheOpts = new ConfigurationOptions
@@ -139,9 +140,11 @@ void removeFromCache(int paymentId)
 
 void updatePaymentStatus(Payment payment, string status, ApixDbContext db)
 {
-    payment.Status = status;
-    payment.UpdatedAt = DateTime.UtcNow;
-    db.Payments.Update(payment);
+    string query = @"UPDATE ""Payment"" SET ""Status"" = {0}, ""UpdatedAt"" = {1} WHERE ""Id"" = {2};";
+    db.Database.ExecuteSqlRaw(query, [status, DateTime.UtcNow, payment.Id]);
+    // payment.Status = status;
+    // payment.UpdatedAt = DateTime.UtcNow;
+    // db.Payments.Update(payment);
     db.SaveChanges();
     removeFromCache(payment.Id);
 }
@@ -166,16 +169,17 @@ HttpResponseMessage sendRequestToDestiny(Payment payment)
     var paymentDTO = new ReqDestinyPaymentDTO(payment);
 
     var taskResponseFromDestiny = httpClient.PostAsJsonAsync(destinyUrl, paymentDTO);
-    var timeoutTask = Task.Delay(TimeSpan.FromSeconds(0.7));
+    var timoutInSecods = 0.7;
+    var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timoutInSecods));
 
     var completedTask = Task.WhenAny(taskResponseFromDestiny, timeoutTask).Result;
 
-    if (completedTask.Equals(timeoutTask))
+    if (completedTask.Equals(taskResponseFromDestiny))
     {
-        throw new PixDestinyFailException("Payment expired");
+        return taskResponseFromDestiny.Result;
     }
 
-    return taskResponseFromDestiny.Result;
+    throw new PixDestinyFailException("Timeout on destiny request");
 }
 
 void validateDestinyResponse(HttpResponseMessage response, DateTime createdAt)
