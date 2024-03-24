@@ -65,6 +65,7 @@ void handleReceivedMessage(object? model, BasicDeliverEventArgs ea)
     var body = ea.Body.ToArray();
     var message = Encoding.UTF8.GetString(body);
     var paymentId = int.Parse(message);
+    Console.WriteLine($" [x] Received paymentId: {paymentId}");
     using var db = new ApixDbContext(dbOptions);
     Payment? payment = null;
 
@@ -89,17 +90,16 @@ void handleReceivedMessage(object? model, BasicDeliverEventArgs ea)
         }
 
     }
-    catch (Exception)
+    catch (Exception e)
     {
+        Console.WriteLine(e.Message);
         channel.BasicReject(deliveryTag: ea.DeliveryTag, requeue: false);
 
-        if (payment == null)
+        if (payment != null)
         {
-            return;
+            updatePaymentStatus(payment, "FAILED", db);
+            sendRequestToOrigin(payment);
         }
-
-        updatePaymentStatus(payment, "FAILED", db);
-        sendRequestToOrigin(payment);
     }
 };
 
@@ -142,9 +142,6 @@ void updatePaymentStatus(Payment payment, string status, ApixDbContext db)
 {
     string query = @"UPDATE ""Payment"" SET ""Status"" = {0}, ""UpdatedAt"" = {1} WHERE ""Id"" = {2};";
     db.Database.ExecuteSqlRaw(query, [status, DateTime.UtcNow, payment.Id]);
-    // payment.Status = status;
-    // payment.UpdatedAt = DateTime.UtcNow;
-    // db.Payments.Update(payment);
     db.SaveChanges();
     removeFromCache(payment.Id);
 }
