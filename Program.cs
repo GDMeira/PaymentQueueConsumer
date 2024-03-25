@@ -114,13 +114,20 @@ Payment retrievePaymentById(int paymentId, ApixDbContext db)
     {
         payment = JsonConvert.DeserializeObject<Payment>(cachedPayment);
     }
-    else
+    
+    if (payment == null 
+        || payment.PaymentProviderAccount.PaymentProvider == null
+        || payment.PixKey.PaymentProviderAccount.PaymentProvider == null)
     {
         payment = db.Payments
+            .AsNoTracking()
             .AsSplitQuery()
             .Include(p => p.PixKey)
             .Include(p => p.PixKey.PaymentProviderAccount)
             .Include(p => p.PixKey.PaymentProviderAccount.PaymentProvider)
+            .Include(p => p.PaymentProviderAccount)
+            .Include(p => p.PaymentProviderAccount.PaymentProvider)
+            .Include(p => p.PaymentProviderAccount.User)
             .FirstOrDefault(p => p.Id == paymentId);
 
         if (payment != null)
